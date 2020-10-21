@@ -8,16 +8,17 @@
 
 const std::string file_extension = ".txt";
 
-void smth(const std::string DataPath, std::string file_name, const size_t counter)
+void smth(const std::string DataPath, std::string file_name, const size_t from, const size_t to)
 {
+    int counter = to-from;
     Pendulum Pnd_arr[counter];
-    for(size_t i = 1; i <= counter; ++i){
-        Pnd_arr[i].Load_Pendulum_angle_history(DataPath + std::to_string(i) + "_r" + file_extension);
-        Pnd_arr[i].Load_Pendulum_angle_history(DataPath + std::to_string(i) + file_extension);
+    for(size_t i = 0; i <= counter; ++i){
+        Pnd_arr[i].Load_Pendulum_angle_history(DataPath + std::to_string(i+from) + "_r" + file_extension);
+        //Pnd_arr[i].Load_Pendulum_angle_history(DataPath + std::to_string(i) + file_extension);
             Pnd_arr[i].shift_angle_history_to_zero();
         Pnd_arr[i].find_freq_through_data(1024*2, 5);
-        Pnd_arr[i].Save_freq(DataPath + std::to_string(i) + "_freq" + file_extension);
-        Pnd_arr[i].Save_period(DataPath + std::to_string(i) + "_period" + file_extension);
+        Pnd_arr[i].Save_freq(DataPath + std::to_string(i+from) + "_freq" + file_extension);
+        Pnd_arr[i].Save_period(DataPath + std::to_string(i+from) + "_period" + file_extension);
 
         std::cout << i << "\n";
     }
@@ -34,7 +35,7 @@ int main()
     DataPath = "";
     input_file_name = "01_r";
 
-    smth("C:/Base/Inertia/RC_small/09.10.2020/Processing/", "", 29);
+    smth("C:/Base/Inertia/RC_small/09.10.2020/Processing/", "", 11, 28);
 
     /**Pendulum P1;
         P1.Load_Pendulum_angle_history(DataPath + input_file_name + file_extension);
