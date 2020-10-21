@@ -23,6 +23,12 @@ public:
         LIR_ROW_FILE
     };
 
+    enum _MODE_SAVE_FILE
+    {
+        SAVE_ALL,
+        SAVE_NONE
+    };
+
     ///input
     double* angle_history;
     size_t data_length;
@@ -38,22 +44,31 @@ public:
     ///MODES
     _MODE_PEAK_FREQ MODE_PEAK_FREQ = _MODE_PEAK_FREQ::SIMPLE;
     _MODE_LOAD_FILE MODE_LOAD_FILE = _MODE_LOAD_FILE::LIR_PROP_FILE;
-
+    _MODE_SAVE_FILE MODE_SAVE_FILE = _MODE_SAVE_FILE::SAVE_NONE;
+    ///_______________________________________________________________
 
     Pendulum();
     Pendulum(double* n_angle_history, const size_t n_angle_history_length, const double &n_discr_t);
+    ///_______________________________________________________________
+
 
     void set_angle_history(double* n_angle_history, const size_t n_angle_history_length, const double &n_discr_t);
     void set_freq(double* n_freq, const size_t n_freq_length, const double &n_discr_freq);
     void set_id(const std::string &n_id);
+    ///_______________________________________________________________
 
     double count_window_freq(size_t index_from, size_t window_length);
     void find_freq_through_data(size_t window_size, size_t window_step);
+    void correct_pendulum_frequency();/// using polynomial correction depends on amplitude
+    ///_______________________________________________________________
 
     size_t length_of_angle_history_file(std::string);
     void fix_LIR_ofscale(double *angle_history, size_t data_length);
     void Load_Pendulum_angle_history(const std::string file_name);
     void shift_angle_history_to_zero();
+
+    void Save_freq(const std::string file_name);
+    void Save_period(const std::string file_name);
 
     void find_pendulum_frequency();
     void Correct_Pendulum_Frequency();/// using polynomial correction depends on amplitude
