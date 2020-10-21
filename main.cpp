@@ -33,9 +33,12 @@ int main()
 
     //Data.Load_matrix_emptstringend(DataPath + input_file_name + file_extension, 1);
     P1.Load_Pendulum_angle_history(DataPath + input_file_name + file_extension);
-    std::cout << P1.angle_history[P1.data_length-2] << std::endl;
+
     P1.shift_angle_history_to_zero();
-    std::cout << P1.angle_history[P1.data_length-2];
-    ///P1.count_freq(5000, 24000);
+    ///P1.MODE_MAX_FREQ = Pendulum::_MODE_MAX_FREQ::POLYNOM_APPROX2;
+    //std::cout << P1.MODE_PEAK_FREQ << std::endl;
+    P1.find_freq_through_data(1024*8, 1000);
+    //P1.count_window_freq(5000, 24000);
+
     //P1.info();
 }
