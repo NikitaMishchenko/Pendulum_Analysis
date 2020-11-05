@@ -6,14 +6,14 @@
 
 #include "Pendulum_Analysis.h"
 #include "C:/Fitures/FFT/FFT.h"
-#include "C:/Fitures/matrix/Matrix.h"
+#include "C:/Fitures/Oscillation_Amplitude_analysis/Oscillation_Amplitude_analysis.h"
 #include "msc.h"
 
 const double Pi = 3.1415926535897932384626433832795;
 
-Pendulum::Pendulum()
-{
+Pendulum::Pendulum(){
     angle_history = nullptr;
+    dangledt_history = nullptr;
     data_length = 0;
     discr_t = 0.0;
 
@@ -21,18 +21,26 @@ Pendulum::Pendulum()
     zeroes_fitting_factor = 0;
     freq = nullptr;
     freq_length = 0;
+    envelop_angle = nullptr;
+    envelop_time = nullptr;
+    envelop_length = 0;
 
     id = "0000";
 }
 
-Pendulum::Pendulum(double* n_angle_history, const size_t n_angle_history_length, const double &n_discr_t)
-{
+Pendulum::Pendulum(double* n_angle_history, const size_t n_angle_history_length, const double &n_discr_t){
     angle_history = new double [n_angle_history_length];
     for(size_t i = 0; i < n_angle_history_length; ++i){
         angle_history[i] = n_angle_history[i];
     }
     data_length = n_angle_history_length;
     discr_t = n_discr_t;
+
+    dangledt_history = new double [n_angle_history_length];
+        find_derevative_3(angle_history, dangledt_history, data_length, discr_t);
+
+    ///envelop
+    calculate_envelop(envelop_angle, envelop_time, envelop_length);
 
     discr_freq = 0.0;
     zeroes_fitting_factor = 0;
@@ -42,32 +50,58 @@ Pendulum::Pendulum(double* n_angle_history, const size_t n_angle_history_length,
     id = "0000";
 }
 
-void Pendulum::set_angle_history(double* n_angle_history, const size_t n_angle_history_length, const double &n_discr_t)
-{
-    delete [] angle_history;
 
-    angle_history = new double [n_angle_history_length];
-    for(size_t i = 0; i < n_angle_history_length; ++i){
-        angle_history[i] = n_angle_history[i];
+void Pendulum::calculate_envelop(double* envelop_angle, double* envelop_time, size_t &envelop_length){
+    //std::cerr << "calculate_envelop_length()\t";
+    int arr[data_length/4]; ///numbers of envelop points /// 1/4 at least
+    size_t k = 0;
+
+    double* smoothed_dangle_history = new double [data_length];
+    moving_avg_filter(dangledt_history, smoothed_dangle_history, data_length, 5);
+
+    std::ofstream fout ("C:/Base/Inertia/RC_small/09.10.2020/Processing/avg.txt");
+    for(size_t i = 0; i < data_length; ++i)
+        fout << i*discr_t << "\t" << smoothed_dangle_history[i] << std::endl;
+    fout.close();
+
+    for(size_t i = 1; i < data_length-1; i++){
+        if(smoothed_dangle_history[i-1] <= 0.0 && smoothed_dangle_history[i] >= 0.0)
+            arr[k++] = i;
+
+        if(smoothed_dangle_history[i-1] >= 0.0 && smoothed_dangle_history[i-1] <= 0.0)
+            arr[k++] = i;
     }
+
+    envelop_angle = new double [k];
+    envelop_time = new double [k];
+    envelop_length = k;
+    for(size_t m = 0; m < k; ++m)
+    {
+        envelop_angle[m] = angle_history[arr[m]];
+        envelop_time[m] = arr[m]*discr_t;
+        //std::cout << arr[m] << "\t" << envelop_angle[m] << std::endl;
+    }
+};
+
+void Pendulum::set_angle_history(double* n_angle_history, const size_t n_angle_history_length, const double &n_discr_t){
+    delete [] angle_history;
     data_length = n_angle_history_length;
+    angle_history = new double [n_angle_history_length];
+    for(size_t i = 0; i < n_angle_history_length; ++i)
+        angle_history[i] = n_angle_history[i];
     discr_t = n_discr_t;
 }
 
-void Pendulum::set_freq(double* n_freq, const size_t n_freq_length, const double &n_discr_freq)
-{
+void Pendulum::set_freq(double* n_freq, const size_t n_freq_length, const double &n_discr_freq){
     delete [] freq;
-
-    freq = new double [n_freq_length];
-    for(size_t i = 0; i < n_freq_length; ++i){
-        freq[i] = n_freq[i];
-    }
     freq_length = n_freq_length;
     discr_freq = n_discr_freq;
+    freq = new double [n_freq_length];
+    for(size_t i = 0; i < n_freq_length; ++i)
+        freq[i] = n_freq[i];
 }
 
-void Pendulum::set_id(const std::string &n_id)
-{
+void Pendulum::set_id(const std::string &n_id){
     id = n_id;
 }
 
@@ -83,9 +117,8 @@ double Pendulum::count_window_freq(size_t index_from, size_t window_length){
     int zeroes_fitting_factor = 2;
     ///depends on enum mode
 
-
     ///static?///
-    simple_FFT sf(window, window_length, discr_t, zeroes_fitting_factor);
+    static simple_FFT sf(window, window_length, discr_t, zeroes_fitting_factor);
         sf.general_FFT();
 
     if( MODE_SAVE_FILE == _MODE_SAVE_FILE::SAVE_ALL){
@@ -133,7 +166,6 @@ void Pendulum::find_freq_through_data(size_t window_size, size_t window_step){
     discr_freq = discr_t*window_step;
     for(size_t i = 0; i < data_length - window_size; )
     {
-        //std::cerr << i << "\t" << k << std::endl;
         freq[k] = this->count_window_freq(i, window_size);
         i += window_step;
         k++;
@@ -143,11 +175,14 @@ void Pendulum::find_freq_through_data(size_t window_size, size_t window_step){
 void Pendulum::correct_pendulum_frequency(){/// using polynomial correction depends on amplitude
     double* envelop_amplitude = new double [freq_length];
     ///find amplitude
-    for(size_t i = 0; i < freq_length; ++i){
+    for(size_t i = 0; i < freq_length; ++i)
         Legander_K(envelop_amplitude[i]/180.0/2.0 * Pi, 6); ///FIXME find envelop
-    }
     delete [] envelop_amplitude;
 }
+
+
+///____________________________________________________________________
+///FILES
 
 size_t Pendulum::length_of_angle_history_file(std::string file_name){
     std::ifstream fin(file_name);
@@ -213,6 +248,12 @@ void Pendulum::Load_Pendulum_angle_history(std::string file_name){
     {
         fix_LIR_ofscale(angle_history, data_length);
     }
+
+    dangledt_history = new double [data_length];
+        find_derevative_3(angle_history, dangledt_history, data_length, discr_t);
+
+    ///envelop_length
+    calculate_envelop(envelop_angle, envelop_time, envelop_length);
 }
 
 void Pendulum::shift_angle_history_to_zero(){///FIXME ///could make better faster stronger using some <algorithm> methods
@@ -222,44 +263,52 @@ void Pendulum::shift_angle_history_to_zero(){///FIXME ///could make better faste
     //std::transform(angle_history, angle_history+data_length, angle_history, [&b_a](double current){return (current - b_a);});
 };
 
-void Pendulum::Save_freq(const std::string file_name)
-{
+void Pendulum::Save_all_angle_history(const std::string file_name){
     std::ofstream fout(file_name);
-    std::cerr << freq_length << std::endl;
-        for(size_t i = 0; i < freq_length; ++i)
-            fout << i*discr_freq << "\t" << freq[i] << std::endl;
-    fout.close();
-}
-void Pendulum::Save_period(const std::string file_name)
-{
-    std::ofstream fout(file_name);
-    std::cerr << freq_length << std::endl;
-        for(size_t i = 0; i < freq_length; ++i)
-            fout << i*discr_freq << "\t" << 1.0/freq[i] << std::endl;
+    if(MODE_REPORT == _MODE_REPORT::EVERYTHING)
+        std::cerr << "Saving all angle history. Length = " << data_length << std::endl;
+    for(size_t i = 0; i < data_length; ++i)
+        fout << i*discr_t << "\t" << angle_history[i] << "\t" << dangledt_history[i] << std::endl;
     fout.close();
 }
 
-void Pendulum::info()
-{
+void Pendulum::Save_freq(const std::string file_name){
+    std::ofstream fout(file_name);
+    if(MODE_REPORT == _MODE_REPORT::EVERYTHING)
+        std::cerr << "Saving freq. Length = " << freq_length << std::endl;
+    for(size_t i = 0; i < freq_length; ++i)
+        fout << i*discr_freq << "\t" << freq[i] << std::endl;
+    fout.close();
+}
+
+void Pendulum::Save_period(const std::string file_name){
+    std::ofstream fout(file_name);
+    if(MODE_REPORT == _MODE_REPORT::EVERYTHING)
+        std::cerr << "Saving period. Length = " << freq_length << std::endl;
+    for(size_t i = 0; i < freq_length; ++i)
+        fout << i*discr_freq << "\t" << 1.0/freq[i] << std::endl;
+    fout.close();
+}
+
+void Pendulum::Save_envelop(const std::string file_name){
+    std::ofstream fout(file_name);
+    if(MODE_REPORT == _MODE_REPORT::EVERYTHING)
+        std::cerr << "Saving envelop. Length = " << envelop_length << std::endl;
+    for(size_t i = 0; i < envelop_length; ++i)
+        fout << envelop_time << "\t" << envelop_angle << std::endl;
+    fout.close();
+}
+
+void Pendulum::info(){
     std::cerr << "Pendulum object:\n";
     std::cerr << "\tid = " << id << std::endl;
     std::cerr << "\tdata_length = " << data_length << std::endl;
     std::cerr << "\tfreq_length = " << freq_length << std::endl;
 }
 
-void foo(double value)
-{
-    std::cout << value << "\t";
-}
-
-
-
-
-void find_max_spectrum_element(double* spectrum, const size_t data_length, double &max_value, size_t &max_value_index)
-{
+/*void find_max_spectrum_element(double* spectrum, const size_t data_length, double &max_value, size_t &max_value_index){
     std::for_each(&spectrum[0], &spectrum[0+data_length], &foo);
     //std::cout << std::endl;
     std::cout << *std::max_element(&spectrum[0],&spectrum[0+data_length]);
-
-};
+};*/
 

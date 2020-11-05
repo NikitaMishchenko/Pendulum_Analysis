@@ -1,7 +1,6 @@
 #ifndef PENDULUM_ANALYSIS_H_INCLUDED
 #define PENDULUM_ANALYSIS_H_INCLUDED
 
-#include "C:/Fitures/matrix/Matrix.h"
 #include <string>
 
 class Pendulum
@@ -9,46 +8,57 @@ class Pendulum
 private:
 protected:
 public:
-
-    enum _MODE_PEAK_FREQ
-    {
+    enum _MODE_PEAK_FREQ{
         SIMPLE,
         POLYNOM_APPROX2
     };
 
-    enum _MODE_LOAD_FILE
-    {
+    enum _MODE_LOAD_FILE{
         PROP_FILE,
         LIR_PROP_FILE,
         LIR_ROW_FILE
     };
 
-    enum _MODE_SAVE_FILE
-    {
+    enum _MODE_SAVE_FILE{
         SAVE_ALL,
         SAVE_NONE
+    };
+
+    enum _MODE_REPORT{
+        EVERYTHING,
+        NONE
     };
 
     ///input
     double* angle_history;
     size_t data_length;
     double discr_t;
+
     ///output
-    double discr_freq;
-    uint16_t zeroes_fitting_factor;
-    double* freq;
-    size_t freq_length;
+    double* dangledt_history; ///derevative 3-dot
+    ///OSC FREQ /// via FFT
+        double discr_freq;
+        uint16_t zeroes_fitting_factor;
+        double* freq;
+        size_t freq_length;
+    ///ENVELOP
+        double* envelop_angle;
+        double* envelop_time;
+        size_t envelop_length;
+
     ///information
     std::string id;///assosiation with inertia Oscillation class etc
     const std::string file_extension;
     ///MODES
-    _MODE_PEAK_FREQ MODE_PEAK_FREQ = _MODE_PEAK_FREQ::SIMPLE;
-    _MODE_LOAD_FILE MODE_LOAD_FILE = _MODE_LOAD_FILE::LIR_PROP_FILE;
-    _MODE_SAVE_FILE MODE_SAVE_FILE = _MODE_SAVE_FILE::SAVE_NONE;
+    _MODE_PEAK_FREQ MODE_PEAK_FREQ  =    _MODE_PEAK_FREQ::SIMPLE;
+    _MODE_LOAD_FILE MODE_LOAD_FILE  =    _MODE_LOAD_FILE::LIR_PROP_FILE;
+    _MODE_SAVE_FILE MODE_SAVE_FILE  =    _MODE_SAVE_FILE::SAVE_NONE;
+    _MODE_REPORT MODE_REPORT        =    _MODE_REPORT::NONE;
     ///_______________________________________________________________
 
     Pendulum();
     Pendulum(double* n_angle_history, const size_t n_angle_history_length, const double &n_discr_t);
+    void calculate_envelop(double* envelop_angle, double* endvelop_time, size_t &envelop_length); ///using dangle
     ///_______________________________________________________________
 
 
@@ -67,8 +77,10 @@ public:
     void Load_Pendulum_angle_history(const std::string file_name);
     void shift_angle_history_to_zero();
 
+    void Save_all_angle_history(const std::string file_name);
     void Save_freq(const std::string file_name);
     void Save_period(const std::string file_name);
+    void Save_envelop(const std::string file_name);
 
     void find_pendulum_frequency();
     void Correct_Pendulum_Frequency();/// using polynomial correction depends on amplitude
