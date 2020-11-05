@@ -30,11 +30,10 @@ Pendulum::Pendulum(){
 
 Pendulum::Pendulum(double* n_angle_history, const size_t n_angle_history_length, const double &n_discr_t){
     angle_history = new double [n_angle_history_length];
-    for(size_t i = 0; i < n_angle_history_length; ++i){
-        angle_history[i] = n_angle_history[i];
-    }
     data_length = n_angle_history_length;
     discr_t = n_discr_t;
+    for(size_t i = 0; i < n_angle_history_length; ++i)
+        angle_history[i] = n_angle_history[i];
 
     dangledt_history = new double [n_angle_history_length];
         find_derevative_3(angle_history, dangledt_history, data_length, discr_t);
